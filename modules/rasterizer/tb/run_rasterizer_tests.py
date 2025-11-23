@@ -9,7 +9,7 @@ from cocotb_tools.runner import get_runner
 MODULE_TOP_LEVEL_NAME = "rasterizer_core"
 MODULE_FILE_PATH      = "../src/rasterizer_core.sv"
 MODULE_DEPENDENCIES   = [
-    "../src/fast_inverse.sv",
+    "../src/fast_inverse_q.sv",
     "../src/rasterizer_frontend.sv",
     "../src/rasterizer_backend.sv"
 ]
@@ -34,8 +34,8 @@ def test_module():
         "SIGNED": "1",
         "INT_BITS": "16",
         "FRAC_BITS": "16",
-        "SCREEN_WIDTH":  "256",
-        "SCREEN_HEIGHT": "256",
+        "SCREEN_WIDTH":  "512",
+        "SCREEN_HEIGHT": "512",
     }
 
     runner.build(

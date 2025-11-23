@@ -9,7 +9,7 @@ from cocotb_tools.runner import get_runner
 MODULE_TOP_LEVEL_NAME = "rasterizer_frontend"
 MODULE_FILE_PATH      = "../src/rasterizer_frontend.sv"
 MODULE_DEPENDENCIES   = [
-    "../src/fast_inverse.sv"
+    "../src/fast_inverse_q.sv"
 ]
 
 def test_module():

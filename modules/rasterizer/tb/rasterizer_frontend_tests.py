@@ -48,15 +48,19 @@ class RasterizerFrontendModel:
         FRAC_BITS: int,
         INT_BITS:  int,
         SCREEN_WIDTH: int,
-        SCREEN_HEIGHT: int
+        SCREEN_HEIGHT: int,
+        AREA_FRAC_BITS: int,
     ) -> None:
         self.name = name
         self.log = logging.getLogger(name)
-        self.FRAC_BITS = FRAC_BITS
-        self.INT_BITS  = INT_BITS
+        self.FRAC_BITS = FRAC_BITS          # e.g. 16
+        self.INT_BITS  = INT_BITS           # e.g. 16
         self.DATA_WIDTH = self.FRAC_BITS + self.INT_BITS
         self.SCREEN_WIDTH = SCREEN_WIDTH
         self.SCREEN_HEIGHT = SCREEN_HEIGHT
+
+        self.AREA_FRAC_BITS = AREA_FRAC_BITS
+        self.AREA_INT_BITS  = self.DATA_WIDTH - self.AREA_FRAC_BITS
 
         self._OUTPUT_RANGE = Range(self.DATA_WIDTH - 1, "downto", 0)
         self._DOUBLE_OUTPUT_RANGE = Range(2*self.DATA_WIDTH - 1, "downto", 0)
@@ -131,15 +135,22 @@ class RasterizerFrontendModel:
         if (area <= 0):
             should_be_culled = 1
         print(f"Should be culled: {should_be_culled}")
+        print()
 
         # Compute barycentric weights at top-left corner of bounding box
         area_reciprocal = 1 / area
-        print("area:     ", area, bin(fp(area, True, 24, 8).bits))
-        print("area inv: ", area_reciprocal, bin(fp(area_reciprocal, True, 4, 28).bits))
+        print("area:     ", format(fp(area, True, 28, 4).bits, '032b'), area)
+        print("area inv: ", format(fp(area_reciprocal, True, 4, 28).bits, '032b'), area_reciprocal)
+        print()
 
         w1 = e1 * area_reciprocal
         w2 = e2 * area_reciprocal
         w3 = e3 * area_reciprocal
+
+        print("bary_weight_0: ", format(fp(w1, True, 4, 28).bits, '032b'), w1)
+        print("bary_weight_1: ", format(fp(w2, True, 4, 28).bits, '032b'), w2)
+        print("bary_weight_2: ", format(fp(w3, True, 4, 28).bits, '032b'), w3)
+        print()
 
         # Compute increments for barycentric weights
         w1_dx = e1_dx * area_reciprocal
@@ -159,44 +170,59 @@ class RasterizerFrontendModel:
         z_dy = (w1_dy * v1[2]) + (w2_dy * v2[2]) + (w3_dy * v3[2])
 
         # Turn back into fixed point
+        zero_la = LogicArray(0, self._OUTPUT_RANGE)
+
         result_fixed = [
+            # o_bb_tl: [x_min, y_min] in position Q-format
             [
                 self.float_to_fp(min_x, True, self.INT_BITS, self.FRAC_BITS, self._OUTPUT_RANGE),
                 self.float_to_fp(min_y, True, self.INT_BITS, self.FRAC_BITS, self._OUTPUT_RANGE),
             ],
+            # o_bb_br: [x_max, y_max] in position Q-format
             [
                 self.float_to_fp(max_x, True, self.INT_BITS, self.FRAC_BITS, self._OUTPUT_RANGE),
                 self.float_to_fp(max_y, True, self.INT_BITS, self.FRAC_BITS, self._OUTPUT_RANGE),
             ],
 
-            self.float_to_fp(e1, True, self.INT_BITS, self.FRAC_BITS, self._OUTPUT_RANGE),
-            self.float_to_fp(e2, True, self.INT_BITS, self.FRAC_BITS, self._OUTPUT_RANGE),
-            self.float_to_fp(e3, True, self.INT_BITS, self.FRAC_BITS, self._OUTPUT_RANGE),
-            
+            # Edge values in area/edge Q-format (AREA_INT_BITS.AREA_FRAC_BITS)
+            self.float_to_fp(e1, True, self.AREA_INT_BITS, self.AREA_FRAC_BITS, self._OUTPUT_RANGE),
+            self.float_to_fp(e2, True, self.AREA_INT_BITS, self.AREA_FRAC_BITS, self._OUTPUT_RANGE),
+            self.float_to_fp(e3, True, self.AREA_INT_BITS, self.AREA_FRAC_BITS, self._OUTPUT_RANGE),
+
+            # Edge deltas in area/edge Q-format
             [
-                self.float_to_fp(e1_dx, True, self.INT_BITS, self.FRAC_BITS, self._OUTPUT_RANGE),
-                self.float_to_fp(e1_dy, True, self.INT_BITS, self.FRAC_BITS, self._OUTPUT_RANGE),
+                self.float_to_fp(e1_dx, True, self.AREA_INT_BITS, self.AREA_FRAC_BITS, self._OUTPUT_RANGE),
+                self.float_to_fp(e1_dy, True, self.AREA_INT_BITS, self.AREA_FRAC_BITS, self._OUTPUT_RANGE),
             ],
             [
-                self.float_to_fp(e2_dx, True, self.INT_BITS, self.FRAC_BITS, self._OUTPUT_RANGE),
-                self.float_to_fp(e2_dy, True, self.INT_BITS, self.FRAC_BITS, self._OUTPUT_RANGE),
+                self.float_to_fp(e2_dx, True, self.AREA_INT_BITS, self.AREA_FRAC_BITS, self._OUTPUT_RANGE),
+                self.float_to_fp(e2_dy, True, self.AREA_INT_BITS, self.AREA_FRAC_BITS, self._OUTPUT_RANGE),
             ],
             [
-                self.float_to_fp(e3_dx, True, self.INT_BITS, self.FRAC_BITS, self._OUTPUT_RANGE),
-                self.float_to_fp(e3_dy, True, self.INT_BITS, self.FRAC_BITS, self._OUTPUT_RANGE),
+                self.float_to_fp(e3_dx, True, self.AREA_INT_BITS, self.AREA_FRAC_BITS, self._OUTPUT_RANGE),
+                self.float_to_fp(e3_dy, True, self.AREA_INT_BITS, self.AREA_FRAC_BITS, self._OUTPUT_RANGE),
             ],
 
+            # o_attr0: [depth, R, G, B]
             [
                 self.float_to_fp(z, True, self.INT_BITS, self.FRAC_BITS, self._OUTPUT_RANGE),
-                0.0, 0.0, 0.0, # RGB colors not used
+                zero_la,  # R
+                zero_la,  # G
+                zero_la,  # B
             ],
+            # o_attr_dx
             [
                 self.float_to_fp(z_dx, True, self.INT_BITS, self.FRAC_BITS, self._OUTPUT_RANGE),
-                0.0, 0.0, 0.0,
+                zero_la,
+                zero_la,
+                zero_la,
             ],
+            # o_attr_dy
             [
                 self.float_to_fp(z_dy, True, self.INT_BITS, self.FRAC_BITS, self._OUTPUT_RANGE),
-                0.0, 0.0, 0.0,
+                zero_la,
+                zero_la,
+                zero_la,
             ]
         ]
 
@@ -218,6 +244,7 @@ class Testbench:
         self.FRAC_BITS  = int(self.dut.FRAC_BITS.value)
         self.INT_BITS   = int(self.dut.INT_BITS.value)
         self.DATA_WIDTH = self.FRAC_BITS + self.INT_BITS
+        self.AREA_FRAC_BITS = int(self.dut.AREA_FRAC_BITS)
         self._OUTPUT_RANGE = Range(self.DATA_WIDTH - 1, "downto", 0)
 
         self.clk_drv = Clock(self.dut.clk, 10, unit="ns")
@@ -279,7 +306,8 @@ class Testbench:
             FRAC_BITS=self.FRAC_BITS,
             INT_BITS=self.INT_BITS,
             SCREEN_WIDTH=self.SCREEN_WIDTH,
-            SCREEN_HEIGHT=self.SCREEN_HEIGHT
+            SCREEN_HEIGHT=self.SCREEN_HEIGHT,
+            AREA_FRAC_BITS=self.AREA_FRAC_BITS
         )
 
         def compare_output(expected, actual) -> bool:

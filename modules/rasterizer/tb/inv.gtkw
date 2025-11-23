@@ -1,0 +1,28 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Sun Nov 23 02:15:26 2025
+[*]
+[dumpfile] "/home/morten/dev/graphics/kv260_gpu/modules/rasterizer/tb/sim_build/dump.vcd"
+[dumpfile_mtime] "Sun Nov 23 02:10:35 2025"
+[dumpfile_size] 32230
+[savefile] "/home/morten/dev/graphics/kv260_gpu/modules/rasterizer/tb/inv.gtkw"
+[timestart] 67900
+[size] 1978 1216
+[pos] -26 -26
+*-14.400000 130000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+[treeopen] rasterizer_frontend.
+[sst_width] 279
+[signals_width] 392
+[sst_expanded] 1
+[sst_vpaned_height] 365
+@28
+rasterizer_frontend.fast_inverse_inst.clk
+@22
+rasterizer_frontend.fast_inverse_inst.w_A_inv_full[63:0]
+@28
+rasterizer_frontend.fast_inverse_inst.A_dv
+rasterizer_frontend.fast_inverse_inst.A_inv_dv
+@23
+rasterizer_frontend.fast_inverse_inst.iter[5:0]
+[pattern_trace] 1
+[pattern_trace] 0

@@ -6,6 +6,11 @@ module rasterizer_frontend #(
     parameter integer FRAC_BITS = 16,
     parameter integer DATA_WIDTH = INT_BITS + FRAC_BITS,
 
+    parameter  integer AREA_FRAC_BITS  = 4,
+    localparam integer AREA_INT_BITS   = DATA_WIDTH - AREA_FRAC_BITS,
+    localparam integer AREA_WIDTH      = DATA_WIDTH,
+    localparam integer EDGE_AREA_SHIFT = 2*FRAC_BITS - AREA_FRAC_BITS,
+
     // Assumed to be in this order (for now):
     // 1.    depth
     // 2-4.  color
@@ -55,6 +60,13 @@ module rasterizer_frontend #(
     output logic culled_triangle
 );
     typedef logic signed [DATA_WIDTH-1:0] s_dw_t;
+    typedef logic signed [AREA_WIDTH-1:0] area_t;
+
+    function automatic area_t edgefun_to_area(input logic signed [2*DATA_WIDTH-1:0] v);
+        // Take a DATA_WIDTH-wide slice starting at bit EDGE_AREA_SHIFT
+        // v[EDGE_AREA_SHIFT +: AREA_WIDTH] == v[EDGE_AREA_SHIFT+AREA_WIDTH-1 : EDGE_AREA_SHIFT]
+        edgefun_to_area = area_t'(v[EDGE_AREA_SHIFT +: AREA_WIDTH]);
+    endfunction
 
     int i;
     localparam [DATA_WIDTH-1:0] SCREEN_WIDTH_FP  = s_dw_t'($signed(SCREEN_WIDTH))  << FRAC_BITS;
@@ -81,13 +93,13 @@ module rasterizer_frontend #(
     logic signed [2*DATA_WIDTH-1:0] w_attr_dy [N_ATTR];
 
     // Edge function data registers
-    logic signed [DATA_WIDTH-1:0] r_edge_val0;
-    logic signed [DATA_WIDTH-1:0] r_edge_val1;
-    logic signed [DATA_WIDTH-1:0] r_edge_val2;
-    logic signed [DATA_WIDTH-1:0] r_edge_delta0[2];
-    logic signed [DATA_WIDTH-1:0] r_edge_delta1[2];
-    logic signed [DATA_WIDTH-1:0] r_edge_delta2[2];
-    logic signed [DATA_WIDTH-1:0] r_area;
+    area_t r_edge_val0;
+    area_t r_edge_val1;
+    area_t r_edge_val2;
+    area_t r_edge_delta0[2];
+    area_t r_edge_delta1[2];
+    area_t r_edge_delta2[2];
+    area_t r_area;
 
     // Edge function compute
     logic signed [DATA_WIDTH-1:0]   r_edge_function_v1[2];
@@ -140,27 +152,30 @@ module rasterizer_frontend #(
     end
 
     // DIVIDER UNIT
-    logic                  w_area_division_ready;
-    logic [DATA_WIDTH-1:0] r_area_division_in_A;
-    logic                  r_area_division_in_A_dv;
+    localparam int AREA_INV_FRAC_BITS = DATA_WIDTH - AREA_FRAC_BITS; // 28
+    localparam int AREA_INV_INT_BITS  = DATA_WIDTH - AREA_INV_FRAC_BITS;
+
+    logic  w_area_division_ready;
+    area_t r_area_division_in_A;
+    logic  r_area_division_in_A_dv;
 
     logic [DATA_WIDTH-1:0] w_area_reciprocal;
     logic                  w_area_reciprocal_dv;
     logic [DATA_WIDTH-1:0] r_area_reciprocal;
 
-    fast_inverse #(
-        .DATA_WIDTH(DATA_WIDTH),
-        .NUM_ITERATIONS(8)
+    fast_inverse_q #(
+        .DATA_WIDTH    (DATA_WIDTH),
+        .A_FRAC_BITS   (AREA_FRAC_BITS),        // area: Q28.4
+        .INV_FRAC_BITS (AREA_INV_FRAC_BITS),     // area_inv: Q4.28
+        .NUM_ITERATIONS(5)
     ) fast_inverse_inst (
-        .clk (clk),
-        .rstn(rstn),
-
-        .ready(w_area_division_ready),
-        .A(r_area_division_in_A),
-        .A_dv(r_area_division_in_A_dv),
-
-        .A_inv(w_area_reciprocal),
-        .A_inv_dv(w_area_reciprocal_dv)
+        .clk        (clk),
+        .rstn       (rstn),
+        .ready      (w_area_division_ready),
+        .A          (r_area),
+        .A_dv       (r_area_division_in_A_dv),
+        .A_inv      (w_area_reciprocal),
+        .A_inv_dv   (w_area_reciprocal_dv)
     );
 
     // Barycentric coordinate compute
@@ -210,9 +225,11 @@ module rasterizer_frontend #(
         end
     end
 
+    localparam area_t MIN_AREA = area_t'((1 << AREA_FRAC_BITS)); // ~1 pixel area
+
     logic w_should_be_culled;
     always_comb begin
-        w_should_be_culled = $signed(r_area) <= $signed({(DATA_WIDTH){1'b0}}) || ~r_bb_valid;
+        w_should_be_culled = $signed(r_area) <= MIN_AREA || ~r_bb_valid;
     end
 
         // ========== STATE ==========
@@ -380,7 +397,8 @@ module rasterizer_frontend #(
                 end
 
                 COMPUTE_AREA: begin
-                    r_area <= w_edge_function_val[DATA_WIDTH + FRAC_BITS - 1 : FRAC_BITS];
+                    r_area <= edgefun_to_area(w_edge_function_val);
+                    $display("area:     %b", edgefun_to_area(w_edge_function_val));
 
                     // Bounding box
                     foreach (r_bb_tl[i]) r_bb_tl[i] <= w_bb_tl[i];
@@ -400,8 +418,9 @@ module rasterizer_frontend #(
                         culled_triangle <= 1'b0;
                     end
 
-                    r_edge_val0   <= w_edge_function_val[DATA_WIDTH + FRAC_BITS - 1 : FRAC_BITS];
-                    r_edge_delta0 <= w_edge_function_delta;
+                    r_edge_val0   <= edgefun_to_area(w_edge_function_val);
+                    r_edge_delta0[0] <= area_t'(w_edge_function_delta[0] >>> (FRAC_BITS - AREA_FRAC_BITS));
+                    r_edge_delta0[1] <= area_t'(w_edge_function_delta[1] >>> (FRAC_BITS - AREA_FRAC_BITS));
 
                     // Area reciprocal compute
                     if (w_area_division_ready) begin
@@ -419,8 +438,9 @@ module rasterizer_frontend #(
 
                 COMPUTE_EDGE_1: begin
                     r_area_division_in_A_dv <= 1'b0;
-                    r_edge_val1   <= w_edge_function_val[DATA_WIDTH + FRAC_BITS - 1 : FRAC_BITS];
-                    r_edge_delta1 <= w_edge_function_delta;
+                    r_edge_val1   <= edgefun_to_area(w_edge_function_val);
+                    r_edge_delta1[0] <= area_t'(w_edge_function_delta[0] >>> (FRAC_BITS - AREA_FRAC_BITS));
+                    r_edge_delta1[1] <= area_t'(w_edge_function_delta[1] >>> (FRAC_BITS - AREA_FRAC_BITS));
 
                     // For i_ready compute
                     r_edge_function_v1 <= '{r_v2[0], r_v2[1]};
@@ -429,13 +449,16 @@ module rasterizer_frontend #(
                 end
 
                 COMPUTE_EDGE_2: begin
-                    r_edge_val2   <= w_edge_function_val[DATA_WIDTH + FRAC_BITS - 1 : FRAC_BITS];
-                    r_edge_delta2 <= w_edge_function_delta;
+                    r_edge_val2   <= edgefun_to_area(w_edge_function_val);
+                    r_edge_delta2[0] <= area_t'(w_edge_function_delta[0] >>> (FRAC_BITS - AREA_FRAC_BITS));
+                    r_edge_delta2[1] <= area_t'(w_edge_function_delta[1] >>> (FRAC_BITS - AREA_FRAC_BITS));
                 end
 
                 REGISTER_AREA_RECIPROCAL: begin
                     if (w_area_reciprocal_dv) begin
                         r_area_reciprocal <= w_area_reciprocal;
+                        $display("area inv: %b", w_area_reciprocal);
+                        $display("");
                     end
                     foreach (r_edge_function_v1[i]) r_edge_function_v1[i] <= '0;
                     foreach (r_edge_function_v2[i]) r_edge_function_v2[i] <= '0;
@@ -443,30 +466,34 @@ module rasterizer_frontend #(
                 end
 
                 COMPUTE_BARYCENTRIC: begin
-                    r_barycentric_weight[0] <= s_dw_t'(w_bw_mul[0] >>> FRAC_BITS);
-                    r_barycentric_weight[1] <= s_dw_t'(w_bw_mul[1] >>> FRAC_BITS);
-                    r_barycentric_weight[2] <= s_dw_t'(w_bw_mul[2] >>> FRAC_BITS);
+                    r_barycentric_weight[0] <= s_dw_t'(w_bw_mul[0] >>> AREA_FRAC_BITS);
+                    r_barycentric_weight[1] <= s_dw_t'(w_bw_mul[1] >>> AREA_FRAC_BITS);
+                    r_barycentric_weight[2] <= s_dw_t'(w_bw_mul[2] >>> AREA_FRAC_BITS);
+                    $display("bary_weight_0: %b", s_dw_t'(w_bw_mul[0] >>> AREA_FRAC_BITS));
+                    $display("bary_weight_1: %b", s_dw_t'(w_bw_mul[1] >>> AREA_FRAC_BITS));
+                    $display("bary_weight_2: %b", s_dw_t'(w_bw_mul[2] >>> AREA_FRAC_BITS));
+                    $display("");
 
                     r_barycentric_weight_delta[0] <= '{
-                        s_dw_t'(w_bw_delta_mul[0][0] >>> FRAC_BITS),
-                        s_dw_t'(w_bw_delta_mul[0][1] >>> FRAC_BITS)
+                        s_dw_t'(w_bw_delta_mul[0][0] >>> AREA_FRAC_BITS),
+                        s_dw_t'(w_bw_delta_mul[0][1] >>> AREA_FRAC_BITS)
                     };
                     r_barycentric_weight_delta[1] <= '{
-                        s_dw_t'(w_bw_delta_mul[1][0] >>> FRAC_BITS),
-                        s_dw_t'(w_bw_delta_mul[1][1] >>> FRAC_BITS)
+                        s_dw_t'(w_bw_delta_mul[1][0] >>> AREA_FRAC_BITS),
+                        s_dw_t'(w_bw_delta_mul[1][1] >>> AREA_FRAC_BITS)
                     };
                     r_barycentric_weight_delta[2] <= '{
-                        s_dw_t'(w_bw_delta_mul[2][0] >>> FRAC_BITS),
-                        s_dw_t'(w_bw_delta_mul[2][1] >>> FRAC_BITS)
+                        s_dw_t'(w_bw_delta_mul[2][0] >>> AREA_FRAC_BITS),
+                        s_dw_t'(w_bw_delta_mul[2][1] >>> AREA_FRAC_BITS)
                     };
                 end
 
                 COMPUTE_ATTRS: begin
                     // Attributes
                     foreach (r_attr0[i]) begin
-                        r_attr0[i]   <= s_dw_t'(w_attr[i]    >>> FRAC_BITS);
-                        r_attr_dx[i] <= s_dw_t'(w_attr_dx[i] >>> FRAC_BITS);
-                        r_attr_dy[i] <= s_dw_t'(w_attr_dy[i] >>> FRAC_BITS);
+                        r_attr0[i]   <= s_dw_t'(w_attr[i]    >>> AREA_INV_FRAC_BITS);
+                        r_attr_dx[i] <= s_dw_t'(w_attr_dx[i] >>> AREA_INV_FRAC_BITS);
+                        r_attr_dy[i] <= s_dw_t'(w_attr_dy[i] >>> AREA_INV_FRAC_BITS);
                     end
                 end
 
