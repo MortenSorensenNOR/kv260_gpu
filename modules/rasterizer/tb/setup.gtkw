@@ -1,0 +1,42 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Fri Nov 21 23:42:21 2025
+[*]
+[dumpfile] "/home/morten/dev/graphics/kv260_gpu/modules/rasterizer/tb/sim_build/dump.vcd"
+[dumpfile_mtime] "Fri Nov 21 23:41:17 2025"
+[dumpfile_size] 6238493
+[savefile] "/home/morten/dev/graphics/kv260_gpu/modules/rasterizer/tb/setup.gtkw"
+[timestart] 0
+[size] 1978 1216
+[pos] -1 -1
+*-14.400000 30000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+[treeopen] rasterizer_core.
+[sst_width] 279
+[signals_width] 267
+[sst_expanded] 1
+[sst_vpaned_height] 365
+@28
+rasterizer_core.clk
+@22
+rasterizer_core.i_attr_v0[0][31:0]
+rasterizer_core.i_attr_v0[1][31:0]
+rasterizer_core.i_attr_v0[2][31:0]
+rasterizer_core.i_attr_v1[0][31:0]
+rasterizer_core.i_attr_v1[1][31:0]
+rasterizer_core.i_attr_v1[2][31:0]
+rasterizer_core.i_attr_v2[0][31:0]
+rasterizer_core.i_attr_v2[1][31:0]
+rasterizer_core.i_attr_v2[2][31:0]
+rasterizer_core.i_v0[0][31:0]
+rasterizer_core.i_v0[1][31:0]
+rasterizer_core.i_v0[2][31:0]
+rasterizer_core.i_v1[0][31:0]
+rasterizer_core.i_v1[1][31:0]
+rasterizer_core.i_v1[2][31:0]
+rasterizer_core.i_v2[0][31:0]
+rasterizer_core.i_v2[1][31:0]
+rasterizer_core.i_v2[2][31:0]
+@29
+rasterizer_core.i_dv
+[pattern_trace] 1
+[pattern_trace] 0

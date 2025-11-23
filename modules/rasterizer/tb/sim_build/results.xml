@@ -1,0 +1,6 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1763858033" />
+    <testcase name="test" classname="rasterizer_frontend_tests" file="/home/morten/dev/graphics/kv260_gpu/modules/rasterizer/tb/rasterizer_frontend_tests.py" lineno="380" time="0.0032079219818115234" sim_time_ns="260.0" ratio_time="81049.35265700483" />
+  </testsuite>
+</testsuites>
