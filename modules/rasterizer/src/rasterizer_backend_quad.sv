@@ -81,6 +81,7 @@ module rasterizer_backend #(
     s_dw_t r_bb_tl[2], r_bb_br[2];
     s_dw_t r_edge_val0_start_row, r_edge_val1_start_row, r_edge_val2_start_row;
     s_dw_t r_edge_delta0[2], r_edge_delta1[2], r_edge_delta2[2];
+    logic  e0_top_left, e1_top_left, e2_top_left;
 
     s_dw_t r_attr_start_row [N_ATTR];
     s_dw_t r_attr_dx        [N_ATTR];
@@ -102,16 +103,28 @@ module rasterizer_backend #(
     logic advance_pixel;
 
     always_comb begin
-        // Base per-pixel test from edges at current pixel
-        pixel_inside_triangle_base =
-            (r_edge_val0 >= 0) && (r_edge_val1 >= 0) && (r_edge_val2 >= 0);
+        // Edge 0 top-left?
+        e0_top_left = (r_edge_delta0[1] > 0) || ((r_edge_delta0[1] == 0) && (r_edge_delta0[0] < 0));
 
-            // If the whole tile is inside, we treat every pixel as inside
-            pixel_inside_triangle = tile_all_inside ? 1'b1 : pixel_inside_triangle_base;
+        // Edge 1 top-left?
+        e1_top_left = (r_edge_delta1[1] > 0) || ((r_edge_delta1[1] == 0) && (r_edge_delta1[0] < 0));
 
-            // Step when pixel is rejected, or accepted and consumer is ready
-            advance_pixel = (!pixel_inside_triangle) || (pixel_inside_triangle && i_ready);
+        // Edge 2 top-left?
+        e2_top_left = (r_edge_delta2[1] > 0) || ((r_edge_delta2[1] == 0) && (r_edge_delta2[0] < 0));
     end
+
+    logic e0_pass, e1_pass, e2_pass;
+    always_comb begin
+        e0_pass = (r_edge_val0 > 0) || ((r_edge_val0 == 0) && e0_top_left);
+        e1_pass = (r_edge_val1 > 0) || ((r_edge_val1 == 0) && e1_top_left);
+        e2_pass = (r_edge_val2 > 0) || ((r_edge_val2 == 0) && e2_top_left);
+
+        pixel_inside_triangle_base = e0_pass && e1_pass && e2_pass;
+
+        pixel_inside_triangle = tile_all_inside ? 1'b1 : pixel_inside_triangle_base;
+        advance_pixel         = (!pixel_inside_triangle) || (pixel_inside_triangle && i_ready);
+    end
+
 
     // ====================== TILE COVERAGE (4-corner test) ======================
     s_dw_t dx0_3, dx1_3, dx2_3, dy0_3, dy1_3, dy2_3;
@@ -153,13 +166,13 @@ module rasterizer_backend #(
         e2_br = r_edge_val2_tile + dx2_3 + dy2_3;
 
         // For each edge, all 4 corners inside or outside
-        e0_all_in  = (e0_tl >= 0) && (e0_tr >= 0) && (e0_bl >= 0) && (e0_br >= 0);
-        e1_all_in  = (e1_tl >= 0) && (e1_tr >= 0) && (e1_bl >= 0) && (e1_br >= 0);
-        e2_all_in  = (e2_tl >= 0) && (e2_tr >= 0) && (e2_bl >= 0) && (e2_br >= 0);
+        e0_all_in  = (e0_tl > 0) && (e0_tr > 0) && (e0_bl > 0) && (e0_br > 0);
+        e1_all_in  = (e1_tl > 0) && (e1_tr > 0) && (e1_bl > 0) && (e1_br > 0);
+        e2_all_in  = (e2_tl > 0) && (e2_tr > 0) && (e2_bl > 0) && (e2_br > 0);
 
-        e0_all_out = (e0_tl <  0) && (e0_tr <  0) && (e0_bl <  0) && (e0_br <  0);
-        e1_all_out = (e1_tl <  0) && (e1_tr <  0) && (e1_bl <  0) && (e1_br <  0);
-        e2_all_out = (e2_tl <  0) && (e2_tr <  0) && (e2_bl <  0) && (e2_br <  0);
+        e0_all_out = (e0_tl < 0) && (e0_tr < 0) && (e0_bl < 0) && (e0_br < 0);
+        e1_all_out = (e1_tl < 0) && (e1_tr < 0) && (e1_bl < 0) && (e1_br < 0);
+        e2_all_out = (e2_tl < 0) && (e2_tr < 0) && (e2_bl < 0) && (e2_br < 0);
 
         // Entire tile fully inside triangle if ALL edges have all 4 corners >= 0
         tile_all_inside  = e0_all_in && e1_all_in && e2_all_in;
@@ -368,8 +381,12 @@ module rasterizer_backend #(
                         r_pix_y <= r_tile_y;
 
                         // Fixed-point
-                        r_cur_x <= s_dw_t'(r_tile_x) <<< FRAC_BITS;
-                        r_cur_y <= s_dw_t'(r_tile_y) <<< FRAC_BITS;
+                        // r_cur_x <= s_dw_t'(r_tile_x) <<< FRAC_BITS;
+                        // r_cur_y <= s_dw_t'(r_tile_y) <<< FRAC_BITS;
+
+                        r_cur_x <= (s_dw_t'(r_tile_x) <<< FRAC_BITS) + (1 <<< (FRAC_BITS-1));
+                        r_cur_y <= (s_dw_t'(r_tile_y) <<< FRAC_BITS) + (1 <<< (FRAC_BITS-1));
+
 
                         // Edge/attrs at tile origin
                         r_edge_val0 <= r_edge_val0_tile;

@@ -5,6 +5,7 @@ module rasterizer_core #(
     parameter integer INT_BITS  = 16,
     parameter integer FRAC_BITS = 16,
     parameter integer DATA_WIDTH = INT_BITS + FRAC_BITS,
+    parameter  integer AREA_FRAC_BITS  = 4,
 
     parameter int N_ATTR = 4,  // depth, R, G, B
 
@@ -66,6 +67,7 @@ module rasterizer_core #(
         .INT_BITS(INT_BITS),
         .FRAC_BITS(FRAC_BITS),
         .DATA_WIDTH(DATA_WIDTH),
+        .AREA_FRAC_BITS(AREA_FRAC_BITS),
         .N_ATTR(N_ATTR),
         .SCREEN_WIDTH(SCREEN_WIDTH),
         .SCREEN_HEIGHT(SCREEN_HEIGHT)
