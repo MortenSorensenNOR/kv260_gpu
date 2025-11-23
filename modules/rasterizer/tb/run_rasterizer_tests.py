@@ -11,7 +11,7 @@ MODULE_FILE_PATH      = "../src/rasterizer_core.sv"
 MODULE_DEPENDENCIES   = [
     "../src/fast_inverse_q.sv",
     "../src/rasterizer_frontend.sv",
-    "../src/rasterizer_backend.sv"
+    "../src/rasterizer_backend_quad.sv"
 ]
 
 def test_module():
@@ -34,8 +34,8 @@ def test_module():
         "SIGNED": "1",
         "INT_BITS": "16",
         "FRAC_BITS": "16",
-        "SCREEN_WIDTH":  "512",
-        "SCREEN_HEIGHT": "512",
+        "SCREEN_WIDTH":  "1280",
+        "SCREEN_HEIGHT": "720",
     }
 
     runner.build(

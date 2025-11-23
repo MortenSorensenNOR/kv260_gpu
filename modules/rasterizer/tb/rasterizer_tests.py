@@ -175,6 +175,27 @@ class Testbench:
             await RisingEdge(self.dut.clk)
         self.dut.rstn.value = 1
 
+    async def measure_cycles_for_current_triangle(self) -> int:
+        """
+        Measure number of clock cycles from input handshake
+        (i_dv & i_ready) until done or culled_triangle is asserted.
+        """
+        # Wait for the input transaction to be accepted
+        while True:
+            await RisingEdge(self.dut.clk)
+            if int(self.dut.i_dv.value) and int(self.dut.i_ready.value):
+                break
+
+        # Count cycles until triangle is either done or culled
+        cycles = 0
+        while True:
+            await RisingEdge(self.dut.clk)
+            cycles += 1
+            if int(self.dut.done.value) or int(self.dut.culled_triangle.value):
+                break
+
+        return cycles
+
     async def fragment_capture(self) -> None:
         """Capture output fragments into the framebuffer."""
         INT_BITS  = self.INT_BITS
@@ -229,7 +250,7 @@ async def test(dut: Any) -> None:
     v0_color = (1.0, 0.0, 0.0)   # red
     v1_color = (0.0, 1.0, 0.0)   # green
     v2_color = (0.0, 0.0, 1.0)   # blue
-    triangle = [[0.5, 0.0, 0.1], [0.0, 1.0, 0.5], [1.0, 1.0, 1.0]]
+    triangle = [[0.5, 0.3, 0.1], [0.3, 0.7, 0.5], [0.7, 0.7, 1.0]]
     for i in range(3):
         triangle[i][0] *= tb.SCREEN_WIDTH
         triangle[i][1] *= tb.SCREEN_HEIGHT
@@ -249,10 +270,9 @@ async def test(dut: Any) -> None:
         "i_attr_v2": v2_attr,
     })
 
-    await First(
-        RisingEdge(tb.dut.culled_triangle),
-        RisingEdge(tb.dut.done)
-    )
+    cycles = await tb.measure_cycles_for_current_triangle()
+    print(f"Triangle completed in {cycles} clock cycles")
+
     if (tb.dut.culled_triangle.value == 1):
         print("This triangle was invalid and therefore culled")
     
