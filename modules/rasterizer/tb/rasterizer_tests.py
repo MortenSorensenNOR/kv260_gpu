@@ -201,6 +201,7 @@ class Testbench:
         INT_BITS  = self.INT_BITS
         FRAC_BITS = self.FRAC_BITS
 
+        seen = False
         while True:
             await RisingEdge(self.dut.clk)
             if int(self.dut.o_dv.value) == 0:
@@ -220,14 +221,18 @@ class Testbench:
                     True, INT_BITS, FRAC_BITS
                 )
                 rgb.append(float(attr_fp))
-            # rgb = [1.0, 1.0, 1.0]
             self.framebuffer[y, x, :] = rgb
+
+            if not seen:
+                print(rgb)
+                seen = True
+
 
     def show_framebuffer(self, title: str = "Framebuffer") -> None:
         plt.figure()
         plt.imshow(np.clip(self.framebuffer, 0.0, 1.0))
         plt.title(title)
-        plt.axis("off")
+        # plt.axis("off")
         plt.show()
 
 def color_to_fp_rgb(tb, color):
@@ -247,34 +252,65 @@ async def test(dut: Any) -> None:
 
     tb.dut.i_ready.value = 1
 
-    v0_color = (1.0, 0.0, 0.0)   # red
-    v1_color = (0.0, 1.0, 0.0)   # green
-    v2_color = (0.0, 0.0, 1.0)   # blue
-    triangle = [[0.5, 0.3, 0.1], [0.3, 0.7, 0.5], [0.7, 0.7, 1.0]]
+    v0_color  = (1.0, 0.0, 0.0)   # red
+    v1_color  = (0.0, 1.0, 0.0)   # green
+    v2_color  = (0.0, 0.0, 1.0)   # blue
+    triangle1 = [[0.3, 0.3, 0.1], [0.7, 0.7, 1.0], [0.7, 0.3, 0.5]]
+    triangle2 = [[0.3, 0.3, 0.1], [0.3, 0.7, 1.0], [0.7, 0.7, 0.5]]
     for i in range(3):
-        triangle[i][0] *= tb.SCREEN_WIDTH
-        triangle[i][1] *= tb.SCREEN_HEIGHT
+        triangle1[i][0] *= tb.SCREEN_WIDTH
+        triangle1[i][1] *= tb.SCREEN_HEIGHT
 
-    triangle_fp = tb.model.triangle_float_to_fp(triangle)
+        triangle2[i][0] *= tb.SCREEN_WIDTH
+        triangle2[i][1] *= tb.SCREEN_HEIGHT
+
+    triangle1_fp = tb.model.triangle_float_to_fp(triangle1)
+    triangle2_fp = tb.model.triangle_float_to_fp(triangle2)
+
+    for i in range(3):
+        print(triangle1_fp[i])
+
     v0_attr = color_to_fp_rgb(tb, v0_color)
     v1_attr = color_to_fp_rgb(tb, v1_color)
     v2_attr = color_to_fp_rgb(tb, v2_color)
 
+    # Triangle 1
     tb.input_drv.send({
-        "i_v0": triangle_fp[0],
-        "i_v1": triangle_fp[1],
-        "i_v2": triangle_fp[2],
+        "i_v0": triangle1_fp[0],
+        "i_v1": triangle1_fp[1],
+        "i_v2": triangle1_fp[2],
 
         "i_attr_v0": v0_attr,
         "i_attr_v1": v1_attr,
         "i_attr_v2": v2_attr,
     })
 
-    cycles = await tb.measure_cycles_for_current_triangle()
-    print(f"Triangle completed in {cycles} clock cycles")
-
-    if (tb.dut.culled_triangle.value == 1):
-        print("This triangle was invalid and therefore culled")
+    full = True
+    if not full:
+        await tb.clk_drv.cycles(100)
+    else:
+        cycles = await tb.measure_cycles_for_current_triangle()
+        print(f"Triangle completed in {cycles} clock cycles")
+        
+        if (tb.dut.culled_triangle.value == 1):
+            print("This triangle was invalid and therefore culled")
+        
+        # Triangle 2
+        tb.input_drv.send({
+            "i_v0": triangle2_fp[0],
+            "i_v1": triangle2_fp[1],
+            "i_v2": triangle2_fp[2],
+        
+            "i_attr_v0": v0_attr,
+            "i_attr_v1": v2_attr,
+            "i_attr_v2": v1_attr,
+        })
+        
+        cycles = await tb.measure_cycles_for_current_triangle()
+        print(f"Triangle completed in {cycles} clock cycles")
+        
+        if (tb.dut.culled_triangle.value == 1):
+            print("This triangle was invalid and therefore culled")
     
     await tb.clk_drv.cycles(5)
     tb.stop()

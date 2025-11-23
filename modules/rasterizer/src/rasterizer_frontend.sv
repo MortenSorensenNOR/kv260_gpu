@@ -87,11 +87,6 @@ module rasterizer_frontend #(
     logic signed [DATA_WIDTH-1:0] r_attr_dx [N_ATTR];
     logic signed [DATA_WIDTH-1:0] r_attr_dy [N_ATTR];
 
-    // Wide intermediates for muls
-    logic signed [2*DATA_WIDTH-1:0] w_attr    [N_ATTR];
-    logic signed [2*DATA_WIDTH-1:0] w_attr_dx [N_ATTR];
-    logic signed [2*DATA_WIDTH-1:0] w_attr_dy [N_ATTR];
-
     // Edge function data registers
     area_t r_edge_val0;
     area_t r_edge_val1;
@@ -187,42 +182,48 @@ module rasterizer_frontend #(
 
     always_comb begin
         // barycentric weights
-        w_bw_mul[0] = $signed(r_edge_val0) * $signed(r_area_reciprocal);
-        w_bw_mul[1] = $signed(r_edge_val1) * $signed(r_area_reciprocal);
-        w_bw_mul[2] = $signed(r_edge_val2) * $signed(r_area_reciprocal);
+        w_bw_mul[0] = $signed(r_edge_val1) * $signed(r_area_reciprocal);
+        w_bw_mul[1] = $signed(r_edge_val2) * $signed(r_area_reciprocal);
+        w_bw_mul[2] = $signed(r_edge_val0) * $signed(r_area_reciprocal);
 
         // deltas
-        w_bw_delta_mul[0][0] = $signed(r_edge_delta0[0]) * $signed(r_area_reciprocal);
-        w_bw_delta_mul[0][1] = $signed(r_edge_delta0[1]) * $signed(r_area_reciprocal);
+        w_bw_delta_mul[0][0] = $signed(r_edge_delta1[0]) * $signed(r_area_reciprocal);
+        w_bw_delta_mul[0][1] = $signed(r_edge_delta1[1]) * $signed(r_area_reciprocal);
 
-        w_bw_delta_mul[1][0] = $signed(r_edge_delta1[0]) * $signed(r_area_reciprocal);
-        w_bw_delta_mul[1][1] = $signed(r_edge_delta1[1]) * $signed(r_area_reciprocal);
+        w_bw_delta_mul[1][0] = $signed(r_edge_delta2[0]) * $signed(r_area_reciprocal);
+        w_bw_delta_mul[1][1] = $signed(r_edge_delta2[1]) * $signed(r_area_reciprocal);
 
-        w_bw_delta_mul[2][0] = $signed(r_edge_delta2[0]) * $signed(r_area_reciprocal);
-        w_bw_delta_mul[2][1] = $signed(r_edge_delta2[1]) * $signed(r_area_reciprocal);
+        w_bw_delta_mul[2][0] = $signed(r_edge_delta0[0]) * $signed(r_area_reciprocal);
+        w_bw_delta_mul[2][1] = $signed(r_edge_delta0[1]) * $signed(r_area_reciprocal);
     end
 
     // Attribute planes
+    logic [$clog2(N_ATTR)-1:0] attr_iter;
+    typedef logic [$clog2(N_ATTR)-1:0] attr_iter_t;
+
+    // Wide intermediates for muls
+    logic signed [2*DATA_WIDTH-1:0] w_attr;
+    logic signed [2*DATA_WIDTH-1:0] w_attr_dx;
+    logic signed [2*DATA_WIDTH-1:0] w_attr_dy;
+
     always_comb begin
-        foreach (w_attr[i]) begin
-            // value at bb_tl
-            w_attr[i] =
-                $signed(r_barycentric_weight[0]) * $signed(r_attr_v0[i]) +
-                $signed(r_barycentric_weight[1]) * $signed(r_attr_v1[i]) +
-                $signed(r_barycentric_weight[2]) * $signed(r_attr_v2[i]);
+        // value at bb_tl
+        w_attr =
+            $signed(r_barycentric_weight[0]) * $signed(r_attr_v0[attr_iter]) +
+            $signed(r_barycentric_weight[1]) * $signed(r_attr_v1[attr_iter]) +
+            $signed(r_barycentric_weight[2]) * $signed(r_attr_v2[attr_iter]);
 
-            // d/dx
-            w_attr_dx[i] =
-                $signed(r_barycentric_weight_delta[0][0]) * $signed(r_attr_v0[i]) +
-                $signed(r_barycentric_weight_delta[1][0]) * $signed(r_attr_v1[i]) +
-                $signed(r_barycentric_weight_delta[2][0]) * $signed(r_attr_v2[i]);
+        // d/dx
+        w_attr_dx =
+            $signed(r_barycentric_weight_delta[0][0]) * $signed(r_attr_v0[attr_iter]) +
+            $signed(r_barycentric_weight_delta[1][0]) * $signed(r_attr_v1[attr_iter]) +
+            $signed(r_barycentric_weight_delta[2][0]) * $signed(r_attr_v2[attr_iter]);
 
-            // d/dy
-            w_attr_dy[i] =
-                $signed(r_barycentric_weight_delta[0][1]) * $signed(r_attr_v0[i]) +
-                $signed(r_barycentric_weight_delta[1][1]) * $signed(r_attr_v1[i]) +
-                $signed(r_barycentric_weight_delta[2][1]) * $signed(r_attr_v2[i]);
-        end
+        // d/dy
+        w_attr_dy =
+            $signed(r_barycentric_weight_delta[0][1]) * $signed(r_attr_v0[attr_iter]) +
+            $signed(r_barycentric_weight_delta[1][1]) * $signed(r_attr_v1[attr_iter]) +
+            $signed(r_barycentric_weight_delta[2][1]) * $signed(r_attr_v2[attr_iter]);
     end
 
     localparam area_t MIN_AREA = area_t'((1 << AREA_FRAC_BITS)); // ~1 pixel area
@@ -299,7 +300,9 @@ module rasterizer_frontend #(
             end
 
             COMPUTE_ATTRS: begin
-                next_state = DONE;
+                if (attr_iter == attr_iter_t'(N_ATTR-1)) begin
+                    next_state = DONE;
+                end
             end
 
             DONE: begin
@@ -340,6 +343,19 @@ module rasterizer_frontend #(
             foreach (r_edge_delta0[i]) r_edge_delta0[i] <= '0;
             foreach (r_edge_delta1[i]) r_edge_delta1[i] <= '0;
             foreach (r_edge_delta2[i]) r_edge_delta2[i] <= '0;
+
+            r_barycentric_weight[0] <= '0;
+            r_barycentric_weight[1] <= '0;
+            r_barycentric_weight[2] <= '0;
+
+            r_barycentric_weight_delta[0] <= '{'0, '0};
+            r_barycentric_weight_delta[1] <= '{'0, '0};
+            r_barycentric_weight_delta[2] <= '{'0, '0};
+
+            foreach (r_attr0   [i]) r_attr0   [i] <= '0;
+            foreach (r_attr_dx [i]) r_attr_dx [i] <= '0;
+            foreach (r_attr_dy [i]) r_attr_dy [i] <= '0;
+            attr_iter <= '0;
 
             o_dv <= '0;
             culled_triangle <= '0;
@@ -392,6 +408,7 @@ module rasterizer_frontend #(
                     foreach (r_attr0   [i]) r_attr0   [i] <= '0;
                     foreach (r_attr_dx [i]) r_attr_dx [i] <= '0;
                     foreach (r_attr_dy [i]) r_attr_dy [i] <= '0;
+                    attr_iter <= '0;
 
                     culled_triangle <= '0;
                 end
@@ -490,11 +507,11 @@ module rasterizer_frontend #(
 
                 COMPUTE_ATTRS: begin
                     // Attributes
-                    foreach (r_attr0[i]) begin
-                        r_attr0[i]   <= s_dw_t'(w_attr[i]    >>> AREA_INV_FRAC_BITS);
-                        r_attr_dx[i] <= s_dw_t'(w_attr_dx[i] >>> AREA_INV_FRAC_BITS);
-                        r_attr_dy[i] <= s_dw_t'(w_attr_dy[i] >>> AREA_INV_FRAC_BITS);
-                    end
+                    r_attr0[attr_iter]   <= s_dw_t'(w_attr    >>> AREA_INV_FRAC_BITS);
+                    r_attr_dx[attr_iter] <= s_dw_t'(w_attr_dx >>> AREA_INV_FRAC_BITS);
+                    r_attr_dy[attr_iter] <= s_dw_t'(w_attr_dy >>> AREA_INV_FRAC_BITS);
+
+                    attr_iter <= attr_iter + 1;
                 end
 
                 DONE: begin

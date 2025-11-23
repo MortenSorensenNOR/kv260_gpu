@@ -143,24 +143,24 @@ class RasterizerFrontendModel:
         print("area inv: ", format(fp(area_reciprocal, True, 4, 28).bits, '032b'), area_reciprocal)
         print()
 
-        w1 = e1 * area_reciprocal
-        w2 = e2 * area_reciprocal
-        w3 = e3 * area_reciprocal
+        w1 = e2 * area_reciprocal
+        w2 = e3 * area_reciprocal
+        w3 = e1 * area_reciprocal
 
-        print("bary_weight_0: ", format(fp(w1, True, 4, 28).bits, '032b'), w1)
-        print("bary_weight_1: ", format(fp(w2, True, 4, 28).bits, '032b'), w2)
-        print("bary_weight_2: ", format(fp(w3, True, 4, 28).bits, '032b'), w3)
+        print("bary_weight_0 (v1): ", format(fp(w1, True, 4, 28).bits, '032b'), w1)
+        print("bary_weight_1 (v2): ", format(fp(w2, True, 4, 28).bits, '032b'), w2)
+        print("bary_weight_2 (v3): ", format(fp(w3, True, 4, 28).bits, '032b'), w3)
         print()
 
-        # Compute increments for barycentric weights
-        w1_dx = e1_dx * area_reciprocal
-        w1_dy = e1_dy * area_reciprocal
+        # Increments for barycentric weights (same remap)
+        w1_dx = e2_dx * area_reciprocal
+        w1_dy = e2_dy * area_reciprocal
 
-        w2_dx = e2_dx * area_reciprocal
-        w2_dy = e2_dy * area_reciprocal
+        w2_dx = e3_dx * area_reciprocal
+        w2_dy = e3_dy * area_reciprocal
 
-        w3_dx = e3_dx * area_reciprocal
-        w3_dy = e3_dy * area_reciprocal
+        w3_dx = e1_dx * area_reciprocal
+        w3_dy = e1_dy * area_reciprocal
 
         # Initialize z at the top-left corner
         z = (w1 * v1[2]) + (w2 * v2[2]) + (w3 * v3[2])
