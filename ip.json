@@ -1,0 +1,11 @@
+{
+  "vendor":  "morsore.folk.ntnu.no",
+  "library": "gpu",
+  "name":    "kv260_gpu",
+  "version": "1.0",
+  "top":     "gpu_top",
+  "deps":    [
+      "modules",
+      "lib"
+  ]
+}

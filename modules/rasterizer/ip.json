@@ -1,0 +1,9 @@
+{
+  "vendor":  "morsore.folk.ntnu.no",
+  "library": "raster_graphics",
+  "name": "rasterizer",
+  "version": "1.0",
+  "deps": [],
+  "top": "rasterizer_core"
+}
+
