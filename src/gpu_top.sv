@@ -84,7 +84,15 @@ module gpu_top #(
     input  logic                                       m_axi_framebuf_rlast,
     input  logic [C_M_AXI_FRAMEBUF_RUSER_WIDTH-1  : 0] m_axi_framebuf_ruser,
     input  logic                                       m_axi_framebuf_rvalid,
-    output logic                                       m_axi_framebuf_rready
+    output logic                                       m_axi_framebuf_rready,
+
+    output logic [31:0] dbg_fragment_x,
+    output logic [31:0] dbg_fragment_y,
+    output logic        dbg_fragment_dv,
+    output logic [31:0] dbg_fb_wr_addr,
+    output logic [31:0] dbg_fb_wr_data,
+    output logic        dbg_fb_wr_valid,
+    output logic        dbg_fb_wr_ready
 );
 
     // TODO: Right now I only have axi ports for ctrl and for the framebuffer
@@ -265,7 +273,16 @@ module gpu_top #(
         .fb_wr_addr(w_usr_wr_addr),
         .fb_wr_data(w_usr_wr_data),
 
-        .status(w_status)
+        .status(w_status),
+
+        .render_done_dbg(),
+        .dbg_fragment_x(dbg_fragment_x),
+        .dbg_fragment_y(dbg_fragment_y),
+        .dbg_fragment_dv(dbg_fragment_dv),
+        .dbg_fb_wr_addr(dbg_fb_wr_addr),
+        .dbg_fb_wr_data(dbg_fb_wr_data),
+        .dbg_fb_wr_valid(dbg_fb_wr_valid),
+        .dbg_fb_wr_ready(dbg_fb_wr_ready)
     );
 
 endmodule

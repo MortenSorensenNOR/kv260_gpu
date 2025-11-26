@@ -16,13 +16,13 @@ module rasterizer_frontend #(
     // 2-4.  color
     // 5-7.  normal
     // 8-10. uv
-    parameter int N_ATTR = 4,  // depth, R, G, B
-
-    parameter signed SCREEN_WIDTH  = 640,
-    parameter signed SCREEN_HEIGHT = 360
+    parameter int N_ATTR = 4  // depth, R, G, B
 ) (
     input logic clk,
     input logic rstn,
+
+    input logic [31:0] screen_width,
+    input logic [31:0] screen_height,
 
     // Input data signals
     input logic signed [DATA_WIDTH-1:0] i_v0[3],
@@ -73,9 +73,14 @@ module rasterizer_frontend #(
     endfunction
 
     int i;
-    localparam [DATA_WIDTH-1:0] SCREEN_WIDTH_FP  = s_dw_t'($signed(SCREEN_WIDTH))  << FRAC_BITS;
-    localparam [DATA_WIDTH-1:0] SCREEN_HEIGHT_FP = s_dw_t'($signed(SCREEN_HEIGHT)) << FRAC_BITS;
     localparam int SHIFT = FRAC_BITS - AREA_FRAC_BITS;  // = 4
+
+    // Screen parameters
+    s_dw_t screen_width_fp;
+    s_dw_t screen_height_fp;
+
+    assign screen_width_fp = s_dw_t'($signed(screen_width))  << FRAC_BITS;
+    assign screen_height_fp = s_dw_t'($signed(screen_height)) << FRAC_BITS;
 
     // Register input data
     logic signed [DATA_WIDTH-1:0] r_v0[3];
@@ -120,8 +125,14 @@ module rasterizer_frontend #(
 
     // Bounding box coumpute
     // For now, just one tile with max width and height
-    localparam logic signed [DATA_WIDTH-1:0] TILE_MIN_X = 0,               TILE_MIN_Y = 0;
-    localparam logic signed [DATA_WIDTH-1:0] TILE_MAX_X = SCREEN_WIDTH_FP, TILE_MAX_Y = SCREEN_HEIGHT_FP;
+    logic signed [DATA_WIDTH-1:0] tile_min_x, tile_min_y;
+    logic signed [DATA_WIDTH-1:0] tile_max_x, tile_max_y;
+    always_comb begin
+        tile_min_x = 0;               
+        tile_min_y = 0;
+        tile_max_x = screen_width_fp; 
+        tile_max_y = screen_height_fp;
+    end
 
     logic signed [DATA_WIDTH-1:0] w_bb_tl[2];
     logic signed [DATA_WIDTH-1:0] w_bb_br[2];
@@ -142,10 +153,10 @@ module rasterizer_frontend #(
         i_max_y = (r_v0[1] > r_v1[1]) ? ((r_v0[1] > r_v2[1]) ? r_v0[1] : r_v2[1]) : ((r_v1[1] > r_v2[1]) ? r_v1[1] : r_v2[1]);
 
         // Clamp min and max values of bbox to edges tile
-        w_bb_tl[0] = (i_min_x < TILE_MIN_X) ? TILE_MIN_X : i_min_x;
-        w_bb_br[0] = (i_max_x > TILE_MAX_X) ? TILE_MAX_X : i_max_x;
-        w_bb_tl[1] = (i_min_y < TILE_MIN_Y) ? TILE_MIN_Y : i_min_y;
-        w_bb_br[1] = (i_max_y > TILE_MAX_Y) ? TILE_MAX_Y : i_max_y;
+        w_bb_tl[0] = (i_min_x < tile_min_x) ? tile_min_x : i_min_x;
+        w_bb_br[0] = (i_max_x > tile_max_x) ? tile_max_x : i_max_x;
+        w_bb_tl[1] = (i_min_y < tile_min_y) ? tile_min_y : i_min_y;
+        w_bb_br[1] = (i_max_y > tile_max_y) ? tile_max_y : i_max_y;
 
         // Check if bbox is inside tile
         w_bb_valid = (w_bb_tl[0] < w_bb_br[0]) && (w_bb_tl[1] < w_bb_br[1]);
@@ -435,6 +446,9 @@ module rasterizer_frontend #(
                 COMPUTE_EDGE_0: begin
                     if (w_should_be_culled) begin
                         culled_triangle <= 1'b1;
+                        $display("area:       %b", r_area);
+                        $display("area logic: %b", $signed(r_area) <= MIN_AREA);
+                        $display("bb logic:   %b", ~r_bb_valid);
                     end else begin
                         culled_triangle <= 1'b0;
                     end
@@ -478,6 +492,22 @@ module rasterizer_frontend #(
                 REGISTER_AREA_RECIPROCAL: begin
                     if (w_area_reciprocal_dv) begin
                         r_area_reciprocal <= w_area_reciprocal;
+
+
+                        $display("area:     %b", r_area);
+                        $display("area inv: %b", w_area_reciprocal);
+                        $display("");
+
+                        $display("e1: %b", r_edge_val0);
+                        $display("e2: %b", r_edge_val1);
+                        $display("e3: %b", r_edge_val2);
+                        $display("");
+
+                        // $display("e1_delta: %b, %b", r_edge_delta0[0], r_edge_delta0[1]);
+                        // $display("e2_delta: %b, %b", r_edge_delta1[0], r_edge_delta1[1]);
+                        // $display("e3_delta: %b, %b", r_edge_delta2[0], r_edge_delta2[1]);
+                        // $display("");
+
                     end
                     foreach (r_edge_function_v1[i]) r_edge_function_v1[i] <= '0;
                     foreach (r_edge_function_v2[i]) r_edge_function_v2[i] <= '0;

@@ -32,8 +32,7 @@ def test_module():
         "SIGNED": "1",
         "INT_BITS": "16",
         "FRAC_BITS": "16",
-        "SCREEN_WIDTH":  "64",
-        "SCREEN_HEIGHT": "64"
+        ""
     }
 
     runner.build(

@@ -1,0 +1,26 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Wed Nov 26 13:03:05 2025
+[*]
+[dumpfile] "/home/morten/dev/graphics/kv260_gpu/tb/sim_build/dump.vcd"
+[dumpfile_mtime] "Wed Nov 26 13:01:34 2025"
+[dumpfile_size] 43324
+[savefile] "/home/morten/dev/graphics/kv260_gpu/tb/setup.gtkw"
+[timestart] 0
+[size] 1280 1567
+[pos] -1 -1
+*-14.100000 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+[sst_width] 46
+[signals_width] 150
+[sst_expanded] 0
+[sst_vpaned_height] 486
+@28
+gpu_core.clk
+@22
+gpu_core.cmd[31:0]
+@28
+gpu_core.cmd_valid
+@23
+gpu_core.status[31:0]
+[pattern_trace] 1
+[pattern_trace] 0

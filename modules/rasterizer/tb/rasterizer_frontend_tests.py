@@ -232,15 +232,15 @@ class RasterizerFrontendModel:
 
 class Testbench:
     """Reusable checker of module instance"""
-    def __init__(self, dut: Any, name: Optional[str] = None) -> None:
+    def __init__(self, dut: Any, SCREEN_WIDTH, SCREEN_HEIGHT, name: Optional[str] = None) -> None:
         self.dut = dut
         self.name = name if name is not None else type(self).__qualname__
         self.log = logging.getLogger(self.name)
         self.log.setLevel(logging.WARNING)
 
         # TODO: More stuff
-        self.SCREEN_WIDTH  = int(self.dut.SCREEN_WIDTH.value)
-        self.SCREEN_HEIGHT = int(self.dut.SCREEN_HEIGHT.value)
+        self.SCREEN_WIDTH  = SCREEN_WIDTH
+        self.SCREEN_HEIGHT = SCREEN_HEIGHT
         self.FRAC_BITS  = int(self.dut.FRAC_BITS.value)
         self.INT_BITS   = int(self.dut.INT_BITS.value)
         self.DATA_WIDTH = self.FRAC_BITS + self.INT_BITS
@@ -408,12 +408,14 @@ class Testbench:
 @cocotb.test()
 async def test(dut: Any) -> None:
     """Test module"""
-    tb = Testbench(dut)
+    SCREEN_WIDTH, SCREEN_HEIGHT = 1280, 720
+    tb = Testbench(dut, SCREEN_WIDTH, SCREEN_HEIGHT)
     tb.start()
     await tb.reset()
 
-    # Apply ready on output port of frontend
-    tb.dut.i_ready.value = 1
+    tb.dut.i_ready.value       = 1
+    tb.dut.screen_width.value  = SCREEN_WIDTH
+    tb.dut.screen_height.value = SCREEN_HEIGHT
 
     triangle = [[0.5, 0.0, 0.1], [0.0, 1.0, 0.5], [1.0, 1.0, 1.0]]
     for i in range(3):

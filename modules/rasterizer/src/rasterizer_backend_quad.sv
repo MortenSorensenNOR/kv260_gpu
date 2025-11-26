@@ -10,10 +10,7 @@ module rasterizer_backend #(
     // 2-4.  color
     // 5-7.  normal
     // 8-10. uv
-    parameter int N_ATTR = 4,
-
-    parameter signed SCREEN_WIDTH  = 640,
-    parameter signed SCREEN_HEIGHT = 360
+    parameter int N_ATTR = 4
 ) (
     input logic clk,
     input logic rstn,
@@ -96,6 +93,7 @@ module rasterizer_backend #(
 
     // Loop indices in integer pixels (for bounds)
     logic [INT_BITS-1:0] r_pix_x, r_pix_y;
+    logic [INT_BITS-1:0] r_bb_height;
 
     // ====================== LOGIC ======================
     logic pixel_inside_triangle_base;  // per-pixel test from edges
@@ -122,7 +120,7 @@ module rasterizer_backend #(
         pixel_inside_triangle_base = e0_pass && e1_pass && e2_pass;
 
         pixel_inside_triangle = tile_all_inside ? 1'b1 : pixel_inside_triangle_base;
-        advance_pixel         = (!pixel_inside_triangle) || (pixel_inside_triangle && i_ready);
+        advance_pixel         = (!pixel_inside_triangle) || (pixel_inside_triangle && i_ready && o_dv);
     end
 
 
@@ -302,6 +300,7 @@ module rasterizer_backend #(
 
                         foreach(r_bb_tl[i]) r_bb_tl[i] <= i_bb_tl[i];
                         foreach(r_bb_br[i]) r_bb_br[i] <= i_bb_br[i];
+                        r_bb_height <= iw_t'(i_bb_br[1] >>> FRAC_BITS) - iw_t'(i_bb_tl[1] >>> FRAC_BITS);
 
                         r_edge_val0_start_row <= i_edge_val0;
                         r_edge_val1_start_row <= i_edge_val1;
@@ -369,6 +368,28 @@ module rasterizer_backend #(
 
                     foreach (r_attr_start_row[i])
                         r_attr_start_row[i] <= r_attr_start_row[i] + r_attr_dy_4x[i];
+`ifndef SYNTHESIS
+/* verilator lint_off WIDTHEXPAND */
+                    // --- Debug progress print every ~8 rows ---
+                    if (r_bb_height != 0) begin
+                        int top_y, rows_done, pct;
+                        // Integer top y from latched bb
+                        top_y = iw_t'(r_bb_tl[1] >>> FRAC_BITS);
+                        // Use NEW tile_y (r_tile_y + 4) relative to top
+                        rows_done = (r_tile_y + 4) - top_y;
+                        if (rows_done < 0) rows_done = 0;
+                        if (rows_done > r_bb_height) rows_done = r_bb_height;
+
+                        pct = (rows_done * 100) / r_bb_height;
+
+                        // Only print every 8th row (approx)
+                        if ((rows_done % 10) == 0) begin
+                            $display("[%0t] rasterizer_backend: %0d%% through triangle (row %0d / %0d)",
+                                     $time, pct, rows_done, r_bb_height);
+                        end
+                    end
+/* verilator lint_on WIDTHEXPAND */
+`endif
                 end
 
                 SETUP_TILE: begin
@@ -415,7 +436,7 @@ module rasterizer_backend #(
                 end
 
                 SCAN_TILE: begin
-                    if (pixel_inside_triangle && i_ready) begin
+                    if (pixel_inside_triangle) begin
                         // Emit fragment at current pixel
                         o_fragment_x <= r_cur_x;
                         o_fragment_y <= r_cur_y;

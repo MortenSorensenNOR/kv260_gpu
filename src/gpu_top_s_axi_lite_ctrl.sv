@@ -617,9 +617,9 @@ module gpu_top_s_axi_lite_ctrl #(
     assign o_v0 = {$signed(v0_x), $signed(v0_y), $signed(v0_z)};
     assign o_v1 = {$signed(v1_x), $signed(v1_y), $signed(v1_z)};
     assign o_v2 = {$signed(v2_x), $signed(v2_y), $signed(v2_z)};
-    assign o_v0_attr[3] = {$signed(v0_attr1), $signed(v0_attr2), $signed(v0_attr3)};
-    assign o_v1_attr[3] = {$signed(v1_attr1), $signed(v1_attr2), $signed(v1_attr3)};
-    assign o_v2_attr[3] = {$signed(v2_attr1), $signed(v2_attr2), $signed(v2_attr3)};
+    assign o_v0_attr = {$signed(v0_attr1), $signed(v0_attr2), $signed(v0_attr3)};
+    assign o_v1_attr = {$signed(v1_attr1), $signed(v1_attr2), $signed(v1_attr3)};
+    assign o_v2_attr = {$signed(v2_attr1), $signed(v2_attr2), $signed(v2_attr3)};
 
     // User logic ends
 endmodule

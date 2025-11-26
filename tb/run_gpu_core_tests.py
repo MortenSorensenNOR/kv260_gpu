@@ -6,12 +6,14 @@ import pytest
 from cocotb_tools.runner import get_runner
 
 # Redefine this when copying testbench runner to another module
-MODULE_TOP_LEVEL_NAME = "rasterizer_core"
-MODULE_FILE_PATH      = "../src/rasterizer_core.sv"
+MODULE_TOP_LEVEL_NAME = "gpu_core"
+MODULE_FILE_PATH      = "../src/gpu_core.sv"
 MODULE_DEPENDENCIES   = [
-    "../src/fast_inverse_q.sv",
-    "../src/rasterizer_frontend.sv",
-    "../src/rasterizer_backend_quad.sv"
+    "../lib/fifo/src/fifo.sv",
+    "../modules/rasterizer/src/fast_inverse_q.sv",
+    "../modules/rasterizer/src/rasterizer_frontend.sv",
+    "../modules/rasterizer/src/rasterizer_backend_quad.sv",
+    "../modules/rasterizer/src/rasterizer_core.sv"
 ]
 
 def test_module():
@@ -31,10 +33,10 @@ def test_module():
 
     build_args = []
     parameters = {
-        "SIGNED": "1",
-        "INT_BITS": "16",
-        "FRAC_BITS": "16",
-        "AREA_FRAC_BITS": "10"
+        # "SIGNED": "1",
+        # "INT_BITS": "16",
+        # "FRAC_BITS": "16",
+        # "AREA_FRAC_BITS": "10"
     }
 
     runner.build(
@@ -49,10 +51,9 @@ def test_module():
     runner.test(
         hdl_toplevel=MODULE_TOP_LEVEL_NAME,
         hdl_toplevel_lang=hdl_toplevel_lang,
-        test_module="rasterizer_tests",
+        test_module="gpu_core_tests",
         waves=True
     )
 
 if __name__ == "__main__":
     test_module()
-

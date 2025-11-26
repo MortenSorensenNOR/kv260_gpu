@@ -7,13 +7,13 @@ module rasterizer_core #(
     parameter integer DATA_WIDTH = INT_BITS + FRAC_BITS,
     parameter  integer AREA_FRAC_BITS  = 4,
 
-    parameter int N_ATTR = 4,  // depth, R, G, B
-
-    parameter signed SCREEN_WIDTH  = 640,
-    parameter signed SCREEN_HEIGHT = 360
+    parameter int N_ATTR = 4  // depth, R, G, B
 ) (
     input logic clk,
     input logic rstn,
+
+    input logic [31:0] screen_width,
+    input logic [31:0] screen_height,
 
     // Input data signals
     input logic signed [DATA_WIDTH-1:0] i_v0[3],
@@ -68,12 +68,13 @@ module rasterizer_core #(
         .FRAC_BITS(FRAC_BITS),
         .DATA_WIDTH(DATA_WIDTH),
         .AREA_FRAC_BITS(AREA_FRAC_BITS),
-        .N_ATTR(N_ATTR),
-        .SCREEN_WIDTH(SCREEN_WIDTH),
-        .SCREEN_HEIGHT(SCREEN_HEIGHT)
+        .N_ATTR(N_ATTR)
     ) rasterizer_frontend_inst (
         .clk(clk),
         .rstn(rstn),
+
+        .screen_width(screen_width),
+        .screen_height(screen_height),
 
         .i_v0(i_v0),
         .i_v1(i_v1),
@@ -108,9 +109,7 @@ module rasterizer_core #(
         .INT_BITS(INT_BITS),
         .FRAC_BITS(FRAC_BITS),
         .DATA_WIDTH(DATA_WIDTH),
-        .N_ATTR(N_ATTR),
-        .SCREEN_WIDTH(SCREEN_WIDTH),
-        .SCREEN_HEIGHT(SCREEN_HEIGHT)
+        .N_ATTR(N_ATTR)
     ) rasterizer_backend_inst (
         .clk(clk),
         .rstn(rstn),
