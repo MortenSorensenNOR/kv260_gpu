@@ -1,0 +1,19 @@
+[project]
+name = "kv260-gpu"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "cocotb>=2.0.1",
+    "fixedpoint",
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.0",
+    "pyqt5>=5.15.11",
+    "pyqt6>=6.10.1",
+    "pytest>=9.0.2",
+    "tqdm>=4.67.1",
+]
+
+[tool.uv.sources]
+fixedpoint = { git = "ssh://git@github.com/OrbitNTNU/loosepoint.git" }

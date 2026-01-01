@@ -1,0 +1,45 @@
+[*]
+[*] GTKWave Analyzer v3.3.125 (w)1999-2025 BSI
+[*] Thu Jan  1 00:49:39 2026
+[*]
+[dumpfile] "/home/morten/dev/kv260_gpu/modules/tile_buffer/tb/sim_build/dump.vcd"
+[dumpfile_mtime] "Thu Jan  1 00:46:49 2026"
+[dumpfile_size] 953112
+[savefile] "/home/morten/dev/kv260_gpu/modules/tile_buffer/tb/setup.gtkw"
+[timestart] 41861750
+[size] 1020 1203
+[pos] -27 -25
+*-14.000000 41920000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 290
+[signals_width] 190
+[sst_expanded] 1
+[sst_vpaned_height] 319
+@28
+tile_buffer.clk
+tile_buffer.rstn
+tile_buffer.ready
+tile_buffer.state[0]
+@22
+tile_buffer.clear_x[7:0]
+tile_buffer.clear_y[7:0]
+tile_buffer.write_x[7:0]
+tile_buffer.write_y[7:0]
+tile_buffer.write_addr[0][11:0]
+tile_buffer.write_addr[1][11:0]
+tile_buffer.write_addr[2][11:0]
+tile_buffer.write_addr[3][11:0]
+tile_buffer.write_pos_tl[11:0]
+@28
+tile_buffer.i_read_valid
+@25
+tile_buffer.i_read_x[7:0]
+tile_buffer.i_read_y[7:0]
+@22
+tile_buffer.o_read_data[0][71:0]
+tile_buffer.o_read_data[1][71:0]
+tile_buffer.o_read_data[2][71:0]
+tile_buffer.o_read_data[3][71:0]
+@28
+tile_buffer.o_read_valid
+[pattern_trace] 1
+[pattern_trace] 0

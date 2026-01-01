@@ -1,0 +1,3 @@
+[submodule "lib/fplib"]
+	path = lib/fplib
+	url = git@github.com:SkyworksSolutionsInc/fplib.git

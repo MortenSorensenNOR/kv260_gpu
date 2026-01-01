@@ -5,3 +5,5 @@ ip_repo/
 
 *.jou
 *.log
+.venv/
+pyrightconfig.json
