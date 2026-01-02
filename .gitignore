@@ -7,3 +7,5 @@ ip_repo/
 *.log
 .venv/
 pyrightconfig.json
+
+tmp/
