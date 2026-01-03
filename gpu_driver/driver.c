@@ -6,6 +6,7 @@
 #include <sys/mman.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 
 // Pynq Displayport library functions
 extern void* pynqvideo_device_init(int fd);
@@ -16,6 +17,8 @@ extern uint64_t pynqvideo_frame_physaddr(void* frame);
 extern void* pynqvideo_frame_data(void* frame);
 extern uint32_t pynqvideo_frame_stride(void* frame);
 extern void  pynqvideo_device_handle_events(void* device);
+extern int   pynqvideo_num_modes(void* device);
+extern int   pynqvideo_get_modes(void* device, struct video_mode* modes, int length);
 
 // GPU AXI register offsets
 #define REG_STATUS      0
@@ -34,6 +37,10 @@ extern void  pynqvideo_device_handle_events(void* device);
 
 // DRM FourCC for XRGB8888
 #define DRM_FORMAT_XRGB8888 0x34325258
+#define DRM_FORMAT_RGB888   0x34324752
+
+// DRM ioctl master request
+#define DRM_IOCTL_SET_MASTER    0x641e
 
 typedef struct {
     volatile uint32_t* regs;
@@ -89,8 +96,8 @@ void gpu_set_depthbuffer(gpu_device_t* gpu, uint64_t phys_addr, uint32_t stride,
 
 int main(int argc, char** argv) {
     uint32_t gpu_base_addr = 0xA0000000; // TODO: Figure out what the actual address is
-    int width = 1280;
-    int height = 720;
+    int width = 1920;
+    int height = 1080;
     int refresh = 60;
 
     if (argc > 1) {
@@ -101,32 +108,61 @@ int main(int argc, char** argv) {
     printf("GPU base address: 0x%08X\n", gpu_base_addr);
 
     // Open GPU registers
-    gpu_device_t* gpu = gpu_open(gpu_base_addr);
-    if (!gpu) {
-        return 1;
-    }
+    // gpu_device_t* gpu = gpu_open(gpu_base_addr);
+    // if (!gpu) {
+    //     return 1;
+    // }
 
     // Open DRM device
     int drm_fd = open("/dev/dri/card0", O_RDWR);
-    if (drm_fd > 0) {
-        perror("Cannot open /dev/dri/card0");
-        gpu_close(gpu);
+    if (drm_fd < 0) {
+        fprintf(stderr, "Cannot open /dev/dri/card0: %s\n", strerror(errno));
+        // gpu_close(gpu);
         return 1;
     }
+
+    // Request DRM master status
+    // if (ioctl(drm_fd, DRM_IOCTL_SET_MASTER, 0) < 0) {
+    //     fprintf(stderr, "Cannot become DRM master: %s\n", strerror(errno));
+    //     fprintf(stderr, "Make sure no other process is using the display\n");
+    //     close(drm_fd);
+    //     // gpu_close(gpu);
+    //     return 1;
+    // }
+    // printf("Became DRM master\n");
 
     // Initialize display
     void* display = pynqvideo_device_init(drm_fd);
     if (!display) {
         fprintf(stderr, "Failed to initialize display\n");
         close(drm_fd);
-        gpu_close(gpu);
+        // gpu_close(gpu);
         return 1;
     }
 
-    if (pynqvideo_device_set_mode(display, width, height, refresh, DRM_FORMAT_XRGB8888) != 0) {
-        fprintf(stderr, "Failed to set display mode\n");
+    // Check nodes
+    int num_modes = pynqvideo_num_modes(display);
+    printf("Available modes: %d\n", num_modes);
+
+    struct video_mode {
+        int width;
+        int height;
+        int refresh;
+    };
+    struct video_mode modes[32];
+    pynqvideo_get_modes(display, modes, 32);
+
+    for (int i = 0; i < num_modes && i < 32; i++) {
+        printf("  Mode %d: %dx%d @ %dHz\n", i, modes[i].width, modes[i].height, modes[i].refresh);
+    }
+
+    // Set display mode
+    printf("Setting mode: %dx%d @ %dHz\n", width, height, refresh);
+    int ret = pynqvideo_device_set_mode(display, width, height, refresh, DRM_FORMAT_RGB888);
+    if (ret != 0) {
+        fprintf(stderr, "Failed to set display mode, error code: %d (%s)\n", ret, strerror(ret));
         close(drm_fd);
-        gpu_close(gpu);
+        // gpu_close(gpu);
         return 1;
     }
 
@@ -139,7 +175,7 @@ int main(int argc, char** argv) {
     if (!frame0 || !frame1) {
         fprintf(stderr, "Failed to allocate framebuffers\n");
         close(drm_fd);
-        gpu_close(gpu);
+        // gpu_close(gpu);
         return 1;
     }
 
@@ -151,7 +187,7 @@ int main(int argc, char** argv) {
     printf("Framebuffer 1: 0x%016lX (stride: %u)\n", fb1_phys, stride);
 
     // Configure GPU to use framebuffer 0
-    gpu_set_framebuffer(gpu, fb0_phys, stride, width, height, 0); // 0 = your GPU's XRGB format enum
+    // gpu_set_framebuffer(gpu, fb0_phys, stride, width, height, 0); // 0 = your GPU's XRGB format enum
     
     printf("\nGPU configured. Ready to render!\n");
     printf("Your GPU should now write to physical address 0x%lX\n", fb0_phys);
@@ -163,34 +199,59 @@ int main(int argc, char** argv) {
     uint64_t current_phys = fb0_phys;
     uint64_t next_phys = fb1_phys;
     
-    // Initial display
-    pynqvideo_frame_write(display, current_frame);
-    
+    // Fill frame0 with red
+    void* fb0_data = pynqvideo_frame_data(frame0);
+    uint8_t* pixels0 = (uint8_t*)fb0_data;
+    memset(pixels0, 0, height * stride);
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            pixels0[y * stride + x * 3 + 2] = 255;  // R
+        }
+    }
+
+    // Fill frame1 with blue  
+    void* fb1_data = pynqvideo_frame_data(frame1);
+    uint8_t* pixels1 = (uint8_t*)fb1_data;
+    memset(pixels1, 0, height * stride);
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            pixels1[y * stride + x * 3 + 0] = 255;  // B
+        }
+    }
+
+    printf("Running at max framerate...\n");
+
+    int frame_count = 0;
+    time_t start_time = time(NULL);
+    time_t last_report = start_time;
+
+    // Display frame0 initially
+    pynqvideo_frame_write(display, frame0);
+
     while (1) {
-        // Handle DRM events (page flip complete, etc)
         pynqvideo_device_handle_events(display);
         
-        // TODO: Here you'd wait for GPU to signal it's done rendering
-        // For now, just wait a bit
-        usleep(16666); // ~60 FPS
+        // Try to flip to the other frame
+        void* frame_to_show = (frame_count % 2 == 0) ? frame1 : frame0;
         
-        // Swap buffers
-        void* tmp = current_frame;
-        current_frame = next_frame;
-        next_frame = tmp;
+        // This will return -1 if busy, 0 if success
+        int ret = pynqvideo_frame_write(display, frame_to_show);
+        if (ret == 0) {
+            // Frame was submitted successfully
+            frame_count++;
+        }
+        // If ret == -1, we're still waiting for previous flip, just loop
         
-        uint64_t tmp_phys = current_phys;
-        current_phys = next_phys;
-        next_phys = tmp_phys;
-        
-        // Configure GPU to render to the NEW back buffer
-        gpu_set_framebuffer(gpu, next_phys, stride, width, height, 0);
-        
-        // Display the frame GPU just finished
-        pynqvideo_frame_write(display, current_frame);
+        // Report FPS
+        time_t now = time(NULL);
+        if (now > last_report) {
+            double elapsed = difftime(now, start_time);
+            printf("Frames: %d, FPS: %.2f\n", frame_count, frame_count / elapsed);
+            last_report = now;
+        }
     }
-    
-    gpu_close(gpu);
+
+    // gpu_close(gpu);
     close(drm_fd);
     return 0;
 }
