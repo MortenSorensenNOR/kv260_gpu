@@ -15,7 +15,7 @@
 module tile_buffer #(
     parameter int POS_ADDRW   = 8,
     parameter int TILE_WIDTH  = 128,
-    parameter int TILE_HEIGHT = 64,
+    parameter int TILE_HEIGHT = 128,
 
     parameter int URAM_SIZE   = (TILE_WIDTH / 2) * (TILE_HEIGHT / 2),
     parameter int URAM_ADDRW  = $clog2(URAM_SIZE),
