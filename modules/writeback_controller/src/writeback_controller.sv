@@ -87,10 +87,10 @@ module writeback_controller #(
     logic [127:0] fifo_bank1_read_data;
     logic         fifo_bank1_read_en;
 
-    logic w_fifo_bank0_empty;
-    logic w_fifo_bank0_full;
-    logic w_fifo_bank1_empty;
-    logic w_fifo_bank1_full;
+    logic fifo_bank0_empty;
+    logic fifo_bank0_full;
+    logic fifo_bank1_empty;
+    logic fifo_bank1_full;
 
     fifo #(
         .DEPTH(FIFO_depth),
@@ -121,6 +121,9 @@ module writeback_controller #(
     );
 
     // Write logic
+    logic [BURST_BITS-1:0] burst_idx;
+    logic axi_write_bank_select;
+
     logic [31:0] pixel_rgba_row0 [4];
     logic [31:0] pixel_rgba_row1 [4];
     always_comb begin
@@ -132,8 +135,8 @@ module writeback_controller #(
 
         pixel_rgba_row1[0] = {pixel_read_buffer[2][47:40], pixel_read_buffer[2][31:24], pixel_read_buffer[2][15:8], 8'hFF};
         pixel_rgba_row1[1] = {pixel_read_buffer[3][47:40], pixel_read_buffer[3][31:24], pixel_read_buffer[3][15:8], 8'hFF};
-        pixel_rgba_row0[2] = {i_read_data[2][47:40], i_read_data[2][31:24], i_read_data[2][15:8], 8'hFF};
-        pixel_rgba_row0[3] = {i_read_data[3][47:40], i_read_data[3][31:24], i_read_data[3][15:8], 8'hFF};
+        pixel_rgba_row1[2] = {i_read_data[2][47:40], i_read_data[2][31:24], i_read_data[2][15:8], 8'hFF};
+        pixel_rgba_row1[3] = {i_read_data[3][47:40], i_read_data[3][31:24], i_read_data[3][15:8], 8'hFF};
 
         fifo_bank0_write_data = {pixel_rgba_row0[0], pixel_rgba_row0[1], pixel_rgba_row0[2], pixel_rgba_row0[3]};
         fifo_bank1_write_data = {pixel_rgba_row1[0], pixel_rgba_row1[1], pixel_rgba_row1[2], pixel_rgba_row1[3]};
@@ -155,16 +158,18 @@ module writeback_controller #(
 
     always_comb begin
         next_state = state;
+        writeback_ready = 1'b0;
 
         case (state)
             IDLE: begin
                 if (writeback_start) begin
                     next_state = READ_ROW;
                 end
+                writeback_ready = 1'b1;
             end
 
             READ_ROW: begin
-                if (~w_fifo_bank0_full) begin
+                if (~fifo_bank0_full) begin
                     next_state = READ_SECOND_QUAD;
                 end
             end
@@ -202,23 +207,41 @@ module writeback_controller #(
             read_pos_x <= '0;
             read_pos_y <= '0;
             read_en <= '0;
+            o_read_start <= '0;
+
+            fifo_bank0_read_en <= '0;
+            fifo_bank1_read_en <= '0;
+            burst_idx <= '0;
+            axi_write_bank_select <= '0;
         end else begin
             case (state)
                 IDLE: begin
                     if (writeback_start) begin
                         // Assuming that the tile buffer starts at ready (TODO: maybe fix this assumption?)
                         read_en <= 1;
+                        o_read_start <= 1;
                     end else begin
                         read_en <= 0;
+                        o_read_start <= '0;
                     end
 
                     read_pos_x <= '0;
                     read_pos_y <= '0;
                     writeback_done <= 1'b0;
+                    o_read_done <= 1'b0;
+
+                    fifo_bank0_read_en <= '0;
+                    fifo_bank1_read_en <= '0;
+                    burst_idx <= '0;
+                    axi_write_bank_select <= '0;
+
+                    o_write_valid <= '0;
                 end
                 
                 READ_ROW: begin
-                    if (~w_fifo_bank0_full) begin
+                    o_read_start <= 0;
+
+                    if (~fifo_bank0_full) begin
                         // We read (x, y) at this state
                         // Setup read for next state (READ_SECOND_QUAD)
                         read_pos_x <= read_pos_x + 2;
@@ -244,17 +267,41 @@ module writeback_controller #(
 
                 WRITE_BACK: begin
                     // something something axi
+                    if (burst_idx == BURST_SIZE / 2) begin
+                        axi_write_bank_select <= 1;
+                    end
+
+                    if (i_write_ready && o_write_valid) begin
+                        burst_idx <= burst_idx + 1;
+
+                        if (axi_write_bank_select) begin
+                            fifo_bank1_read_en <= 1;
+                            fifo_bank0_read_en <= 0;
+                        end else begin
+                            fifo_bank1_read_en <= 0;
+                            fifo_bank0_read_en <= 1;
+                        end
+                    end else begin
+                        fifo_bank0_read_en <= 0;
+                        fifo_bank1_read_en <= 0;
+                    end
+
+                    o_write_valid <= (burst_idx < BURST_SIZE);
+
                     // TODO: write logic to the AXI bus
 
                     // AXI done
-                    if (read_pos_y < POS_ADDRW'(TILE_HEIGHT-2)) begin
-                        // Want to start reading on the next y row
-                        read_en <= 1;
+                    if (burst_idx >= BURST_SIZE) begin
+                        if (read_pos_y < POS_ADDRW'(TILE_HEIGHT-2)) begin
+                            // Want to start reading on the next y row
+                            read_en <= 1;
+                        end
                     end
                 end
 
                 DONE: begin
                     writeback_done <= 1'b1;
+                    o_read_done <= 1'b1;
                 end
 
                 default: begin
@@ -267,5 +314,7 @@ module writeback_controller #(
     assign o_read_pos_x = read_pos_x;
     assign o_read_pos_y = read_pos_y;
     assign o_read_en    = read_en;
+
+    assign o_write_data  = axi_write_bank_select ?  fifo_bank1_read_data : fifo_bank0_read_data;
 
 endmodule
