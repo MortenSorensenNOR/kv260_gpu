@@ -1,0 +1,46 @@
+[*]
+[*] GTKWave Analyzer v3.3.125 (w)1999-2025 BSI
+[*] Mon Jan  5 16:52:31 2026
+[*]
+[dumpfile] "/home/morten/dev/kv260_gpu/modules/writeback_controller/tb/sim_build/dump.vcd"
+[dumpfile_mtime] "Mon Jan  5 16:52:10 2026"
+[dumpfile_size] 161430
+[savefile] "/home/morten/dev/kv260_gpu/modules/writeback_controller/tb/setup.gtkw"
+[timestart] 416750
+[size] 2048 1207
+[pos] -1 -1
+*-14.000000 487610 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] writeback_controller.
+[sst_width] 290
+[signals_width] 190
+[sst_expanded] 1
+[sst_vpaned_height] 367
+@28
+writeback_controller.clk
+writeback_controller.rstn
+writeback_controller.state[2:0]
+writeback_controller.writeback_ready
+writeback_controller.writeback_start
+writeback_controller.writeback_done
+writeback_controller.o_read_start
+writeback_controller.o_read_done
+@25
+writeback_controller.o_read_pos_x[7:0]
+writeback_controller.o_read_pos_y[7:0]
+@28
+writeback_controller.o_read_en
+writeback_controller.i_read_ready
+@22
+writeback_controller.i_read_data[0][71:0]
+writeback_controller.i_read_data[1][71:0]
+writeback_controller.i_read_data[2][71:0]
+writeback_controller.i_read_data[3][71:0]
+@28
+writeback_controller.i_read_valid
+writeback_controller.i_write_ready
+@22
+writeback_controller.o_write_data[127:0]
+@28
+writeback_controller.o_write_valid
+[pattern_trace] 1
+[pattern_trace] 0

@@ -6,12 +6,10 @@ import pytest
 from cocotb_tools.runner import get_runner
 
 # Redefine this when copying testbench runner to another module
-MODULE_TOP_LEVEL_NAME = "rasterizer_core"
-MODULE_FILE_PATH      = "../src/rasterizer_core.sv"
+MODULE_TOP_LEVEL_NAME = "writeback_controller"
+MODULE_FILE_PATH      = "../src/writeback_controller.sv"
 MODULE_DEPENDENCIES   = [
-    "../src/fast_inverse_q.sv",
-    "../src/rasterizer_frontend.sv",
-    "../src/rasterizer_backend_quad.sv"
+    "../../../lib/fifo/src/fifo.sv"
 ]
 
 def test_module():
@@ -22,7 +20,6 @@ def test_module():
     # Project files
     proj_path = Path(__file__).resolve().parent
     repo_root = proj_path.parents[2] # This only holds for a modules/MODULE_NAME/tb path
-
     sources   = [proj_path / MODULE_FILE_PATH, *[proj_path / path for path in MODULE_DEPENDENCIES]]
 
     # Define runner
@@ -31,10 +28,6 @@ def test_module():
 
     build_args = []
     parameters = {
-        "SIGNED": "1",
-        "INT_BITS": "16",
-        "FRAC_BITS": "16",
-        "AREA_FRAC_BITS": "10"
     }
 
     runner.build(
@@ -49,7 +42,7 @@ def test_module():
     runner.test(
         hdl_toplevel=MODULE_TOP_LEVEL_NAME,
         hdl_toplevel_lang=hdl_toplevel_lang,
-        test_module="rasterizer_tests",
+        test_module="writeback_controller_tests",
         waves=True
     )
 
